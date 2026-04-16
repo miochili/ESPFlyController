@@ -1,0 +1,31 @@
+name: Build ESPFlyController IPA
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Package Swift sources as zip
+        run: |
+          mkdir -p ESPFlyController_Sources
+          cp ESPFlyControllerApp.swift ContentView.swift JoystickView.swift DroneUDPClient.swift ESPFlyController_Sources/
+          zip -r ESPFlyController_Sources.zip ESPFlyController_Sources/
+          echo "Sources packaged successfully"
+
+      - name: Upload Sources as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ESPFlyController-Sources
+          path: ESPFlyController_Sources.zip
+          retention-days: 30
