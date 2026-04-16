@@ -6,69 +6,24 @@ workflows:
     environment:
       xcode: latest
     scripts:
-      - name: Create Xcode project and build unsigned IPA
+      - name: Install XcodeGen
+        script: brew install xcodegen
+      - name: Generate Xcode project
+        script: xcodegen generate
+      - name: Build unsigned IPA
         script: |
-          set -e
-
-          # Create project structure
-          mkdir -p ESPFlyController/ESPFlyController.xcodeproj
-          mkdir -p ESPFlyController/ESPFlyController
-
-          # Copy swift files
-          cp *.swift ESPFlyController/ESPFlyController/ 2>/dev/null || true
-
-          # Create project.pbxproj
-          cat > ESPFlyController/ESPFlyController.xcodeproj/project.pbxproj << 'PBXEOF'
-// !$*UTF8*$!
-{
-	archiveVersion = 1;
-	classes = {
-	};
-	objectVersion = 56;
-	objects = {
-		B001 = {isa = PBXBuildFile; fileRef = F001; };
-		B002 = {isa = PBXBuildFile; fileRef = F002; };
-		B003 = {isa = PBXBuildFile; fileRef = F003; };
-		B004 = {isa = PBXBuildFile; fileRef = F004; };
-		F001 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		F002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
-		F003 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoystickView.swift; sourceTree = "<group>"; };
-		F004 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UDPManager.swift; sourceTree = "<group>"; };
-		P001 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ESPFlyController.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		T001 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		T002 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		T003 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B001, B002, B003, B004,); runOnlyForDeploymentPostprocessing = 0; };
-		G001 = {isa = PBXGroup; children = (F001, F002, F003, F004,); path = ESPFlyController; sourceTree = "<group>"; };
-		G002 = {isa = PBXGroup; children = (G001, P001,); sourceTree = "<group>"; };
-		N001 = {isa = PBXNativeTarget; buildConfigurationList = C002; buildPhases = (T003, T001, T002,); buildRules = (); dependencies = (); name = ESPFlyController; productName = ESPFlyController; productReference = P001; productType = "com.apple.product-type.application"; };
-		R001 = {isa = PBXProject; attributes = {LastSwiftUpdateCheck = 1500; LastUpgradeCheck = 1500; }; buildConfigurationList = C001; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = G002; productRefGroup = G002; projectDirPath = ""; projectRoot = ""; targets = (N001,); };
-		X001 = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; CODE_SIGN_IDENTITY = ""; CODE_SIGNING_ALLOWED = NO; CODE_SIGNING_REQUIRED = NO; ENABLE_TESTABILITY = YES; GCC_C_LANGUAGE_STANDARD = gnu11; IPHONEOS_DEPLOYMENT_TARGET = 15.0; PRODUCT_BUNDLE_IDENTIFIER = "com.espfly.controller"; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
-		X002 = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CODE_SIGN_IDENTITY = ""; CODE_SIGNING_ALLOWED = NO; CODE_SIGNING_REQUIRED = NO; }; name = Release; };
-		C001 = {isa = XCConfigurationList; buildConfigurations = (X002,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		C002 = {isa = XCConfigurationList; buildConfigurations = (X001,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-	};
-	rootObject = R001;
-}
-PBXEOF
-
-          # Build unsigned .app
           xcodebuild \
-            -project ESPFlyController/ESPFlyController.xcodeproj \
+            -project ESPFlyController.xcodeproj \
             -scheme ESPFlyController \
             -configuration Release \
             -sdk iphoneos \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            CONFIGURATION_BUILD_DIR=$PWD/build/Release-iphoneos \
+            CONFIGURATION_BUILD_DIR=$PWD/build \
             build
-
-          # Package .app into .ipa
           mkdir -p Payload
-          cp -r build/Release-iphoneos/ESPFlyController.app Payload/
-          zip -r ESPFlyController.ipa Payload
-          echo "IPA created successfully"
-
+          cp -r build/ESPFlyController.app Payload/
+          zip -r ESPFlyController.ipa Payload/
     artifacts:
       - ESPFlyController.ipa
-      - build/Release-iphoneos/*.app
