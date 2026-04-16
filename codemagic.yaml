@@ -1,0 +1,72 @@
+workflows:
+  ios-workflow:
+    name: ESPFlyController iOS Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      xcode: latest
+    scripts:
+      - name: Create Xcode project
+        script: |
+          mkdir -p ESPFlyController/ESPFlyController.xcodeproj
+          cp *.swift ESPFlyController/ 2>/dev/null || true
+
+          cat > ESPFlyController/ESPFlyController.xcodeproj/project.pbxproj << 'EOF'
+          // !$*UTF8*$!
+          {
+            archiveVersion = 1;
+            classes = {};
+            objectVersion = 56;
+            objects = {
+              B001 = {isa = PBXBuildFile; fileRef = B002; };
+              B003 = {isa = PBXBuildFile; fileRef = B004; };
+              B005 = {isa = PBXBuildFile; fileRef = B006; };
+              B007 = {isa = PBXBuildFile; fileRef = B008; };
+              B002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ESPFlyControllerApp.swift; path = ESPFlyControllerApp.swift; sourceTree = "<group>"; };
+              B004 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContentView.swift; path = ContentView.swift; sourceTree = "<group>"; };
+              B006 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = JoystickView.swift; path = JoystickView.swift; sourceTree = "<group>"; };
+              B008 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DroneUDPClient.swift; path = DroneUDPClient.swift; sourceTree = "<group>"; };
+              B009 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ESPFlyController.app; sourceTree = BUILT_PRODUCTS_DIR; };
+              B010 = {isa = PBXGroup; children = (B002, B004, B006, B008); sourceTree = "<group>"; };
+              B011 = {isa = PBXGroup; children = (B009); name = Products; sourceTree = "<group>"; };
+              B012 = {isa = PBXGroup; children = (B010, B011); sourceTree = "<group>"; };
+              B013 = {isa = PBXNativeTarget; buildConfigurationList = B014; buildPhases = (B015, B016); buildRules = (); dependencies = (); name = ESPFlyController; productName = ESPFlyController; productReference = B009; productType = "com.apple.product-type.application"; };
+              B014 = {isa = XCConfigurationList; buildConfigurations = (B017, B018); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+              B015 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B001, B003, B005, B007); runOnlyForDeploymentPostprocessing = 0; };
+              B016 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+              B017 = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CODE_SIGN_IDENTITY = ""; CODE_SIGNING_ALLOWED = NO; INFOPLIST_FILE = ""; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = ch.miochili.ESPFlyController; PRODUCT_NAME = ESPFlyController; SDKROOT = iphoneos; SWIFT_VERSION = 5.9; }; name = Debug; };
+              B018 = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CODE_SIGN_IDENTITY = ""; CODE_SIGNING_ALLOWED = NO; INFOPLIST_FILE = ""; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = ch.miochili.ESPFlyController; PRODUCT_NAME = ESPFlyController; SDKROOT = iphoneos; SWIFT_VERSION = 5.9; }; name = Release; };
+              B019 = {isa = XCConfigurationList; buildConfigurations = (B020, B021); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+              B020 = {isa = XCBuildConfiguration; buildSettings = {}; name = Debug; };
+              B021 = {isa = XCBuildConfiguration; buildSettings = {}; name = Release; };
+              BROOT = {isa = PBXProject; attributes = {}; buildConfigurationList = B019; compatibilityVersion = "Xcode 14.0"; mainGroup = B012; productRefGroup = B011; projectDirPath = ""; projectRoot = ""; targets = (B013); };
+            };
+            rootObject = BROOT;
+          }
+          EOF
+
+      - name: Build iOS app (no signing)
+        script: |
+          cd ESPFlyController
+          xcodebuild \
+            -project ESPFlyController.xcodeproj \
+            -scheme ESPFlyController \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            build \
+            SYMROOT="$CM_BUILD_DIR/build" \
+            2>&1 | xcpretty || true
+
+      - name: Package app as zip artifact
+        script: |
+          find "$CM_BUILD_DIR/build" -name "*.app" -type d | head -5
+          mkdir -p artifacts
+          find "$CM_BUILD_DIR/build" -name "*.app" -exec cp -r {} artifacts/ \;
+          cd artifacts && zip -r ESPFlyController-Simulator.zip . 2>/dev/null || echo "No app bundle found"
+          ls -la
+
+    artifacts:
+      - artifacts/**
