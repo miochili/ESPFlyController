@@ -3,7 +3,10 @@ import CoreBluetooth
 
 final class BLEManager: NSObject, ObservableObject {
     @Published var isConnected = false
-    @Published var statusText = "Suche ESPFly-XIA ..."
+    @Published var statusText = "Not connected"
+    @Published var discoveredDevices: [CBPeripheral] = []
+    @Published var isScanning = false
+    @Published var showDeviceList = false
 
     private var centralManager: CBCentralManager!
     private var peripheral: CBPeripheral?
@@ -18,18 +21,46 @@ final class BLEManager: NSObject, ObservableObject {
         centralManager = CBCentralManager(delegate: self, queue: .main)
     }
 
+    func startScan() {
+        guard centralManager.state == .poweredOn else { return }
+        discoveredDevices = []
+        isScanning = true
+        showDeviceList = true
+        statusText = "Scanning for devices ..."
+        centralManager.scanForPeripherals(withServices: nil, options: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+            if self.isScanning { self.stopScan() }
+        }
+    }
+
+    func stopScan() {
+        centralManager.stopScan()
+        isScanning = false
+        if !isConnected { statusText = "Scan finished" }
+    }
+
+    func connect(to device: CBPeripheral) {
+        peripheral = device
+        peripheral?.delegate = self
+        centralManager.stopScan()
+        isScanning = false
+        showDeviceList = false
+        statusText = "Connecting to \(device.name ?? "Device") ..."
+        centralManager.connect(device, options: nil)
+    }
+
+    func disconnect() {
+        guard let peripheral = peripheral else { return }
+        centralManager.cancelPeripheralConnection(peripheral)
+    }
+
     func sendJoystick(throttle: Float, yaw: Float, pitch: Float, roll: Float) {
         let command = String(format: "JOY,%.3f,%.3f,%.3f,%.3f", throttle, yaw, pitch, roll)
         send(command)
     }
 
-    func sendLand() {
-        send("LAND")
-    }
-
-    func sendEmergencyStop() {
-        send("STOP")
-    }
+    func sendLand() { send("LAND") }
+    func sendEmergencyStop() { send("STOP") }
 
     private func send(_ string: String) {
         guard let peripheral = peripheral,
@@ -42,36 +73,28 @@ final class BLEManager: NSObject, ObservableObject {
 extension BLEManager: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
-        case .poweredOn:
-            statusText = "Suche ESPFly-XIA ..."
-            centralManager.scanForPeripherals(withServices: nil, options: nil)
-        case .poweredOff:
-            statusText = "Bluetooth ist aus"
-        case .unauthorized:
-            statusText = "Bluetooth nicht erlaubt"
-        case .unsupported:
-            statusText = "Bluetooth nicht unterstützt"
-        default:
-            statusText = "Bluetooth nicht bereit"
+        case .poweredOn:    statusText = "Not connected"
+        case .poweredOff:   statusText = "Bluetooth is off"
+        case .unauthorized: statusText = "Bluetooth not allowed"
+        case .unsupported:  statusText = "Bluetooth not supported"
+        default:            statusText = "Bluetooth not ready"
         }
     }
 
     func centralManager(_ central: CBCentralManager,
                         didDiscover peripheral: CBPeripheral,
-                        advertisementData: [String : Any],
+                        advertisementData: [String: Any],
                         rssi RSSI: NSNumber) {
-        if peripheral.name == targetDeviceName {
-            statusText = "Verbinde mit \(targetDeviceName) ..."
-            self.peripheral = peripheral
-            self.peripheral?.delegate = self
-            centralManager.stopScan()
-            centralManager.connect(peripheral, options: nil)
+        guard let name = peripheral.name, !name.isEmpty else { return }
+        if !discoveredDevices.contains(where: { $0.identifier == peripheral.identifier }) {
+            discoveredDevices.append(peripheral)
         }
     }
 
-    func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+    func centralManager(_ central: CBCentralManager,
+                        didConnect peripheral: CBPeripheral) {
         isConnected = true
-        statusText = "Verbunden mit \(targetDeviceName)"
+        statusText = "Connected to \(peripheral.name ?? targetDeviceName)"
         peripheral.discoverServices([serviceUUID])
     }
 
@@ -79,7 +102,7 @@ extension BLEManager: CBCentralManagerDelegate {
                         didFailToConnect peripheral: CBPeripheral,
                         error: Error?) {
         isConnected = false
-        statusText = "Verbindung fehlgeschlagen"
+        statusText = "Connection failed"
     }
 
     func centralManager(_ central: CBCentralManager,
@@ -87,13 +110,13 @@ extension BLEManager: CBCentralManagerDelegate {
                         error: Error?) {
         isConnected = false
         commandCharacteristic = nil
-        statusText = "Getrennt – suche erneut ..."
-        centralManager.scanForPeripherals(withServices: nil, options: nil)
+        statusText = "Disconnected"
     }
 }
 
 extension BLEManager: CBPeripheralDelegate {
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+    func peripheral(_ peripheral: CBPeripheral,
+                    didDiscoverServices error: Error?) {
         guard let services = peripheral.services else { return }
         for service in services where service.uuid == serviceUUID {
             peripheral.discoverCharacteristics([characteristicUUID], for: service)
@@ -106,7 +129,7 @@ extension BLEManager: CBPeripheralDelegate {
         guard let characteristics = service.characteristics else { return }
         for characteristic in characteristics where characteristic.uuid == characteristicUUID {
             commandCharacteristic = characteristic
-            statusText = "BLE bereit"
+            statusText = "BLE ready"
         }
     }
 }
