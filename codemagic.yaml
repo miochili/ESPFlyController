@@ -3,27 +3,48 @@ workflows:
     name: ESPFlyController iOS Build
     max_build_duration: 60
     instance_type: mac_mini_m2
+
     environment:
       xcode: latest
+
     scripts:
       - name: Install XcodeGen
         script: brew install xcodegen
+
       - name: Generate Xcode project
         script: xcodegen generate
-      - name: Build unsigned IPA
+
+      - name: Clean old build files
         script: |
-          xcodebuild \
+          rm -rf build
+          rm -rf Payload
+          rm -rf ESPFlyController.ipa
+          rm -rf ESPFlyController.xcarchive
+
+      - name: Archive unsigned app
+        script: |
+          xcodebuild archive \
             -project ESPFlyController.xcodeproj \
             -scheme ESPFlyController \
             -configuration Release \
+            -archivePath $PWD/ESPFlyController.xcarchive \
             -sdk iphoneos \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            CONFIGURATION_BUILD_DIR=$PWD/build \
-            build
+            CODE_SIGN_IDENTITY=""
+
+      - name: Create unsigned IPA
+        script: |
           mkdir -p Payload
-          cp -r build/ESPFlyController.app Payload/
-          zip -r ESPFlyController.ipa Payload/
+          cp -R "$PWD/ESPFlyController.xcarchive/Products/Applications/ESPFlyController.app" Payload/
+          cd Payload
+          zip -r ../ESPFlyController.ipa ESPFlyController.app
+          cd ..
+
+      - name: Verify IPA contents
+        script: |
+          unzip -l ESPFlyController.ipa
+          test -f "$PWD/Payload/ESPFlyController.app/ESPFlyController"
+
     artifacts:
       - ESPFlyController.ipa
