@@ -14,7 +14,7 @@ struct ContentView: View {
                 Image("drone_bg")
                     .resizable()
                     .scaledToFill()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
                     .clipped()
                     .ignoresSafeArea()
 
@@ -46,7 +46,6 @@ struct ContentView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 18)
             }
-            .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
         }
     }
 
@@ -165,6 +164,7 @@ struct CircleButton: View {
             Circle()
                 .fill(color)
                 .frame(width: size, height: size)
+
             Image(systemName: symbol)
                 .font(.system(size: size * 0.30, weight: .bold))
                 .foregroundColor(.white)
