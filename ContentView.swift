@@ -268,7 +268,7 @@ struct DeviceListSheet: View {
                         }
                         .listRowBackground(Color(red: 0.13, green: 0.13, blue: 0.13))
                     }
-                    .scrollContentBackground(.hidden)
+                    // iOS 15 kompatibel: kein .scrollContentBackground
                 }
             }
             .navigationTitle("Select Device")
