@@ -1,3 +1,10 @@
+name: ESPFlyController
+
+options:
+  bundleIdPrefix: com.miochili
+  deploymentTarget:
+    iOS: "15.0"
+
 targets:
   ESPFlyController:
     type: application
@@ -10,7 +17,7 @@ targets:
           - README.md
           - codemagic.yaml
           - project.yml
-          - Assets.xcassets/**
+          - build.yml
     resources:
       - Assets.xcassets
     settings:
