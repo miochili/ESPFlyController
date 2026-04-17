@@ -10,12 +10,18 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color.black
+            Image("drone_bg")
+                .resizable()
+                .scaledToFill()
                 .ignoresSafeArea()
+                .overlay(Color.black.opacity(0.62).ignoresSafeArea())
 
             VStack(spacing: 18) {
                 header
                 overviewCard
+
+                Spacer(minLength: 18)
+
                 JoystickView(
                     throttle: $throttle,
                     yaw: $yaw,
