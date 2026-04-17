@@ -9,37 +9,44 @@ struct ContentView: View {
     @State private var roll: Float = 0.0
 
     var body: some View {
-        ZStack {
-            Image("drone_bg")
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
-                .overlay(Color.black.opacity(0.62).ignoresSafeArea())
+        GeometryReader { _ in
+            ZStack {
+                Image("drone_bg")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    .ignoresSafeArea()
 
-            VStack(spacing: 18) {
-                header
-                overviewCard
+                Color.black.opacity(0.55)
+                    .ignoresSafeArea()
 
-                Spacer(minLength: 18)
+                VStack(spacing: 18) {
+                    header
+                    overviewCard
 
-                JoystickView(
-                    throttle: $throttle,
-                    yaw: $yaw,
-                    pitch: $pitch,
-                    roll: $roll,
-                    onChange: sendControl
-                )
-                .frame(width: 280, height: 280)
+                    Spacer(minLength: 14)
 
-                controlRow
-                landButton
+                    JoystickView(
+                        throttle: $throttle,
+                        yaw: $yaw,
+                        pitch: $pitch,
+                        roll: $roll,
+                        onChange: sendControl
+                    )
+                    .frame(width: 280, height: 280)
 
-                Spacer(minLength: 0)
+                    controlRow
+                    landButton
+
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.top, 14)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 18)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding(.top, 14)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 18)
+            .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
         }
     }
 
