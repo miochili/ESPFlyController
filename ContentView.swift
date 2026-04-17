@@ -3,32 +3,53 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var bleManager = BLEManager()
 
-    @State private var throttle: Float = 0.5
+    @State private var throttle: Float = 0.0
     @State private var yaw: Float = 0.0
     @State private var pitch: Float = 0.0
     @State private var roll: Float = 0.0
 
     var body: some View {
-        VStack(spacing: 18) {
-            HStack {
-                Text("ESPFlyController")
-                    .font(.title2)
-                    .bold()
+        ZStack {
+            Color.black.ignoresSafeArea()
 
-                Spacer()
+            VStack(spacing: 18) {
+                Text("ESP Fly Controller")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.top, 12)
 
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(bleManager.isConnected ? Color.green.opacity(0.25) : Color.red.opacity(0.25))
-                    .frame(width: 88, height: 34)
+                Text("BLE")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.65))
+
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color(red: 0.10, green: 0.10, blue: 0.10))
+                    .frame(height: 118)
                     .overlay(
-                        Text(bleManager.isConnected ? "Verbunden" : "Offline")
-                            .font(.caption)
-                            .foregroundColor(bleManager.isConnected ? .green : .red)
-                    )
-            }
-            .padding(.horizontal)
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(bleManager.isConnected ? Color.green : Color.red)
+                                    .frame(width: 10, height: 10)
 
-            VStack(spacing: 10) {
+                                Text(bleManager.isConnected ? "Connected" : "Disconnected")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+
+                                Spacer()
+                            }
+
+                            HStack(spacing: 10) {
+                                statBox(title: "Pitch", value: pitch)
+                                statBox(title: "Roll", value: roll)
+                                statBox(title: "Yaw", value: yaw)
+                                statBox(title: "Throttle", value: throttle)
+                            }
+                        }
+                        .padding(18)
+                    )
+                    .padding(.horizontal)
+
                 JoystickView(
                     throttle: $throttle,
                     yaw: $yaw,
@@ -36,68 +57,88 @@ struct ContentView: View {
                     roll: $roll,
                     onChange: sendControl
                 )
-                .frame(height: 340)
+                .frame(width: 280, height: 280)
 
-                HStack(spacing: 14) {
+                HStack(spacing: 18) {
                     Button(action: {
                         throttle = min(1.0, throttle + 0.1)
                         sendControl()
                     }) {
-                        Text("UP")
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(14)
+                        CircleButton(symbol: "arrow.up", color: .green, size: 86)
+                    }
+
+                    Button(action: {
+                        bleManager.sendEmergencyStop()
+                    }) {
+                        CircleButton(symbol: "stop.fill", color: Color(white: 0.18), size: 86)
                     }
 
                     Button(action: {
                         throttle = max(0.0, throttle - 0.1)
                         sendControl()
                     }) {
-                        Text("DOWN")
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(14)
+                        CircleButton(symbol: "arrow.down", color: .red, size: 86)
                     }
                 }
-                .padding(.horizontal)
+                .padding(.top, 4)
 
                 Button(action: {
                     bleManager.sendLand()
                 }) {
                     Text("LANDEN")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
-                        .background(Color.orange)
+                        .background(Color.white.opacity(0.10))
                         .foregroundColor(.white)
-                        .cornerRadius(16)
+                        .cornerRadius(18)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18)
+                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        )
                 }
                 .padding(.horizontal)
-                .padding(.top, 4)
 
-                Button(action: {
-                    bleManager.sendEmergencyStop()
-                }) {
-                    Text("NOT-STOPP")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 18)
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(16)
-                }
-                .padding(.horizontal)
+                Spacer(minLength: 8)
             }
-
-            Spacer()
+            .padding(.bottom, 16)
         }
-        .padding(.top, 10)
     }
 
     private func sendControl() {
         bleManager.sendJoystick(throttle: throttle, yaw: yaw, pitch: pitch, roll: roll)
+    }
+
+    private func statBox(title: String, value: Float) -> some View {
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundColor(.white.opacity(0.45))
+            Text(String(format: "%+.2f", value))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+        }
+        .frame(maxWidth: .infinity, minHeight: 58)
+        .background(Color.white.opacity(0.06))
+        .cornerRadius(16)
+    }
+}
+
+struct CircleButton: View {
+    let symbol: String
+    let color: Color
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(color)
+                .frame(width: size, height: size)
+            Image(systemName: symbol)
+                .font(.system(size: size * 0.30, weight: .bold))
+                .foregroundColor(.white)
+        }
+        .shadow(color: color.opacity(0.25), radius: 8, x: 0, y: 4)
     }
 }
 
