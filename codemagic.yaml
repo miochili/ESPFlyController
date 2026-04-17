@@ -33,6 +33,15 @@ workflows:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
 
+      - name: Inspect archive app contents
+        script: |
+          set -e
+          APP_PATH="$CM_BUILD_DIR/ESPFlyController.xcarchive/Products/Applications/ESPFlyController.app"
+          echo "APP_PATH=$APP_PATH"
+          ls -la "$APP_PATH"
+          echo "---- Resources ----"
+          find "$APP_PATH" -maxdepth 2 -type f | sort
+
       - name: Create unsigned IPA
         script: |
           set -e
