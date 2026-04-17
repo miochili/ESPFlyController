@@ -1,50 +1,42 @@
 workflows:
-  ios-workflow:
+  ios-build:
     name: ESPFlyController iOS Build
-    max_build_duration: 60
     instance_type: mac_mini_m2
+    max_build_duration: 60
 
     environment:
-      xcode: latest
+      xcode: 26.2
+      ios_signing:
+        distribution_type: development
+        bundle_identifier: com.miochili.ESPFlyController
 
     scripts:
-      - name: Install XcodeGen
-        script: brew install xcodegen
-
-      - name: Generate Xcode project
-        script: xcodegen generate
-
-      - name: Clean old build files
+      - name: Install dependencies
         script: |
-          rm -rf build
-          rm -rf Payload
-          rm -rf ESPFlyController.ipa
-          rm -rf ESPFlyController.xcarchive
+          set -e
+          xcodebuild -version
 
-      - name: Archive unsigned app
+      - name: Set up code signing settings on Xcode project
         script: |
+          set -e
+          xcode-project use-profiles
+
+      - name: Archive app
+        script: |
+          set -e
           xcodebuild archive \
             -project ESPFlyController.xcodeproj \
             -scheme ESPFlyController \
             -configuration Release \
-            -archivePath $PWD/ESPFlyController.xcarchive \
-            -sdk iphoneos \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
+            -archivePath "$CM_BUILD_DIR/ESPFlyController.xcarchive"
 
-      - name: Create unsigned IPA
+      - name: Export IPA
         script: |
-          mkdir -p Payload
-          cp -R "$PWD/ESPFlyController.xcarchive/Products/Applications/ESPFlyController.app" Payload/
-          cd Payload
-          zip -r ../ESPFlyController.ipa ESPFlyController.app
-          cd ..
-
-      - name: Verify IPA contents
-        script: |
-          unzip -l ESPFlyController.ipa
-          test -f "$PWD/Payload/ESPFlyController.app/ESPFlyController"
+          set -e
+          xcodebuild -exportArchive \
+            -archivePath "$CM_BUILD_DIR/ESPFlyController.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "$CM_BUILD_DIR/export"
 
     artifacts:
-      - ESPFlyController.ipa
+      - export/*.ipa
