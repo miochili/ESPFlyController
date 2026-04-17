@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var bleManager = BLEManager()
-    @StateObject private var udpClient = DroneUDPClient()
 
     @State private var throttle: Float = 0.0
     @State private var yaw: Float = 0.0
@@ -59,11 +58,7 @@ struct ContentView: View {
 
             HStack(spacing: 16) {
                 Button("Landen") {
-                    if bleManager.isConnected {
-                        bleManager.sendLand()
-                    } else {
-                        udpClient.sendLanding()
-                    }
+                    bleManager.sendLand()
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
@@ -72,11 +67,7 @@ struct ContentView: View {
                 .cornerRadius(12)
 
                 Button("NOT-STOPP") {
-                    if bleManager.isConnected {
-                        bleManager.sendEmergencyStop()
-                    } else {
-                        udpClient.sendEmergencyStop()
-                    }
+                    bleManager.sendEmergencyStop()
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
@@ -92,21 +83,12 @@ struct ContentView: View {
     }
 
     private func sendControl() {
-        if bleManager.isConnected {
-            bleManager.sendJoystick(
-                throttle: throttle,
-                yaw: yaw,
-                pitch: pitch,
-                roll: roll
-            )
-        } else {
-            udpClient.sendJoystick(
-                throttle: throttle,
-                yaw: yaw,
-                pitch: pitch,
-                roll: roll
-            )
-        }
+        bleManager.sendJoystick(
+            throttle: throttle,
+            yaw: yaw,
+            pitch: pitch,
+            roll: roll
+        )
     }
 }
 

@@ -6,37 +6,40 @@ workflows:
 
     environment:
       xcode: 26.2
-      ios_signing:
-        distribution_type: development
-        bundle_identifier: com.miochili.ESPFlyController
 
     scripts:
-      - name: Install dependencies
+      - name: Install XcodeGen
         script: |
-          set -e
-          xcodebuild -version
+          brew install xcodegen
 
-      - name: Set up code signing settings on Xcode project
+      - name: Generate Xcode project
         script: |
-          set -e
-          xcode-project use-profiles
+          xcodegen generate
 
-      - name: Archive app
+      - name: Clean old build files
+        script: |
+          rm -rf build ESPFlyController.xcarchive Payload ESPFlyController.ipa
+
+      - name: Archive unsigned app
         script: |
           set -e
           xcodebuild archive \
             -project ESPFlyController.xcodeproj \
             -scheme ESPFlyController \
             -configuration Release \
-            -archivePath "$CM_BUILD_DIR/ESPFlyController.xcarchive"
+            -archivePath "$CM_BUILD_DIR/ESPFlyController.xcarchive" \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
 
-      - name: Export IPA
+      - name: Create unsigned IPA
         script: |
           set -e
-          xcodebuild -exportArchive \
-            -archivePath "$CM_BUILD_DIR/ESPFlyController.xcarchive" \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath "$CM_BUILD_DIR/export"
+          rm -rf Payload ESPFlyController.ipa
+          mkdir -p Payload
+          cp -R "$CM_BUILD_DIR/ESPFlyController.xcarchive/Products/Applications/ESPFlyController.app" Payload/
+          /usr/bin/zip -qry ESPFlyController.ipa Payload
 
     artifacts:
-      - export/*.ipa
+      - ESPFlyController.ipa
