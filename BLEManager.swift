@@ -10,8 +10,6 @@ final class BLEManager: NSObject, ObservableObject {
     private var commandCharacteristic: CBCharacteristic?
 
     private let targetDeviceName = "ESPFly-XIA"
-
-    // Diese UUIDs müssen später exakt zu deinem ESP32-BLE-Code passen
     private let serviceUUID = CBUUID(string: "12345678-1234-1234-1234-1234567890AB")
     private let characteristicUUID = CBUUID(string: "87654321-4321-4321-4321-BA0987654321")
 
@@ -36,10 +34,7 @@ final class BLEManager: NSObject, ObservableObject {
     private func send(_ string: String) {
         guard let peripheral = peripheral,
               let characteristic = commandCharacteristic,
-              let data = string.data(using: .utf8) else {
-            return
-        }
-
+              let data = string.data(using: .utf8) else { return }
         peripheral.writeValue(data, for: characteristic, type: .withResponse)
     }
 }
@@ -87,7 +82,9 @@ extension BLEManager: CBCentralManagerDelegate {
         statusText = "Verbindung fehlgeschlagen"
     }
 
-    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+    func centralManager(_ central: CBCentralManager,
+                        didDisconnectPeripheral peripheral: CBPeripheral,
+                        error: Error?) {
         isConnected = false
         commandCharacteristic = nil
         statusText = "Getrennt – suche erneut ..."
@@ -98,7 +95,6 @@ extension BLEManager: CBCentralManagerDelegate {
 extension BLEManager: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard let services = peripheral.services else { return }
-
         for service in services where service.uuid == serviceUUID {
             peripheral.discoverCharacteristics([characteristicUUID], for: service)
         }
@@ -108,7 +104,6 @@ extension BLEManager: CBPeripheralDelegate {
                     didDiscoverCharacteristicsFor service: CBService,
                     error: Error?) {
         guard let characteristics = service.characteristics else { return }
-
         for characteristic in characteristics where characteristic.uuid == characteristicUUID {
             commandCharacteristic = characteristic
             statusText = "BLE bereit"
