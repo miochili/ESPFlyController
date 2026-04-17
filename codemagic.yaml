@@ -18,9 +18,9 @@ workflows:
 
       - name: Clean old build files
         script: |
-          rm -rf build ESPFlyController.xcarchive Payload ESPFlyController.ipa exportOptions.plist
+          rm -rf build ESPFlyController.xcarchive Payload ESPFlyController.ipa
 
-      - name: Archive app
+      - name: Archive unsigned app
         script: |
           set -e
           xcodebuild archive \
@@ -31,40 +31,15 @@ workflows:
             -sdk iphoneos \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            clean archive
+            CODE_SIGN_IDENTITY=""
 
-      - name: Create export options
-        script: |
-          cat > exportOptions.plist <<'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>development</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>compileBitcode</key>
-            <false/>
-            <key>stripSwiftSymbols</key>
-            <true/>
-          </dict>
-          </plist>
-          EOF
-
-      - name: Export IPA
+      - name: Create unsigned IPA
         script: |
           set -e
-          xcodebuild -exportArchive \
-            -archivePath "$CM_BUILD_DIR/ESPFlyController.xcarchive" \
-            -exportPath "$CM_BUILD_DIR/exported" \
-            -exportOptionsPlist exportOptions.plist \
-            CODE_SIGNING_ALLOWED=NO
-
-      - name: Copy IPA artifact
-        script: |
-          cp "$CM_BUILD_DIR/exported/ESPFlyController.ipa" "$CM_BUILD_DIR/ESPFlyController.ipa"
+          rm -rf Payload ESPFlyController.ipa
+          mkdir -p Payload
+          cp -R "$CM_BUILD_DIR/ESPFlyController.xcarchive/Products/Applications/ESPFlyController.app" Payload/
+          /usr/bin/zip -qry ESPFlyController.ipa Payload
 
     artifacts:
       - ESPFlyController.ipa
