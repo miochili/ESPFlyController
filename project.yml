@@ -1,21 +1,20 @@
-name: ESPFlyController
-
-options:
-  bundleIdPrefix: com.miochili
-  deploymentTarget:
-    iOS: 15.0
-
 targets:
   ESPFlyController:
     type: application
     platform: iOS
     sources:
-      - .
+      - path: .
+        excludes:
+          - .git/**
+          - .github/**
+          - README.md
+          - codemagic.yaml
+          - project.yml
+          - Assets.xcassets/**
+    resources:
+      - Assets.xcassets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.miochili.ESPFlyController
         INFOPLIST_FILE: Info.plist
         TARGETED_DEVICE_FAMILY: 1
-    info:
-      path: Info.plist
-    dependencies: []
