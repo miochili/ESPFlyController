@@ -12,9 +12,11 @@ final class BLEManager: NSObject, ObservableObject {
     private var peripheral: CBPeripheral?
     private var commandCharacteristic: CBCharacteristic?
 
-    private let targetDeviceName = "ESPFly-XIA"
-    private let serviceUUID = CBUUID(string: "12345678-1234-1234-1234-1234567890AB")
-    private let characteristicUUID = CBUUID(string: "87654321-4321-4321-4321-BA0987654321")
+    // Muss exakt mit ESP-Code übereinstimmen
+    private let targetDeviceName = "ESPFly-XIAO"
+    private let serviceUUID      = CBUUID(string: "7A1F0001-6B8B-4E63-9FA5-1234567890AB")
+    private let commandCharUUID  = CBUUID(string: "7A1F0003-6B8B-4E63-9FA5-1234567890AB")
+    private let statusCharUUID   = CBUUID(string: "7A1F0002-6B8B-4E63-9FA5-1234567890AB")
 
     override init() {
         super.init()
@@ -119,7 +121,7 @@ extension BLEManager: CBPeripheralDelegate {
                     didDiscoverServices error: Error?) {
         guard let services = peripheral.services else { return }
         for service in services where service.uuid == serviceUUID {
-            peripheral.discoverCharacteristics([characteristicUUID], for: service)
+            peripheral.discoverCharacteristics([commandCharUUID, statusCharUUID], for: service)
         }
     }
 
@@ -127,9 +129,25 @@ extension BLEManager: CBPeripheralDelegate {
                     didDiscoverCharacteristicsFor service: CBService,
                     error: Error?) {
         guard let characteristics = service.characteristics else { return }
-        for characteristic in characteristics where characteristic.uuid == characteristicUUID {
-            commandCharacteristic = characteristic
-            statusText = "BLE ready"
+        for characteristic in characteristics {
+            if characteristic.uuid == commandCharUUID {
+                commandCharacteristic = characteristic
+                statusText = "BLE ready"
+            }
+            if characteristic.uuid == statusCharUUID {
+                peripheral.setNotifyValue(true, for: characteristic)
+            }
+        }
+    }
+
+    func peripheral(_ peripheral: CBPeripheral,
+                    didUpdateValueFor characteristic: CBCharacteristic,
+                    error: Error?) {
+        guard characteristic.uuid == statusCharUUID,
+              let data = characteristic.value,
+              let text = String(data: data, encoding: .utf8) else { return }
+        DispatchQueue.main.async {
+            self.statusText = "ESP: \(text)"
         }
     }
 }
