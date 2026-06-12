@@ -164,7 +164,17 @@ struct ContentView: View {
     // MARK: - Land Button
 
     private var landButton: some View {
-        Button(action: { bleManager.sendLand() }) {
+        Button(action: {
+            // Startet sanften Throttle-Fade im BLEManager (~2s)
+            bleManager.sendLand()
+            // UI animiert parallel runter
+            withAnimation(.easeOut(duration: 1.2)) {
+                throttle = 0.0
+                yaw = 0.0
+                pitch = 0.0
+                roll = 0.0
+            }
+        }) {
             Text("LAND")
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .frame(maxWidth: .infinity)
@@ -183,7 +193,7 @@ struct ContentView: View {
     // MARK: - Helpers
 
     private func sendControl() {
-        bleManager.sendJoystick(throttle: throttle, yaw: yaw, pitch: pitch, roll: roll)
+        bleManager.updateJoystick(throttle: throttle, yaw: yaw, pitch: pitch, roll: roll)
     }
 
     private func statBox(title: String, value: Float) -> some View {
@@ -242,7 +252,7 @@ struct DeviceListSheet: View {
                             HStack(spacing: 12) {
                                 Image(systemName: "antenna.radiowaves.left.and.right")
                                     .foregroundColor(
-                                        device.name == "ESPFly-XIA" ? .green : .blue
+                                        device.name == "ESPFly-XIAO" ? .green : .blue
                                     )
                                     .font(.system(size: 18))
 
@@ -251,7 +261,7 @@ struct DeviceListSheet: View {
                                         .foregroundColor(.white)
                                         .font(.system(size: 15, weight: .semibold,
                                                       design: .rounded))
-                                    if device.name == "ESPFly-XIA" {
+                                    if device.name == "ESPFly-XIAO" {
                                         Text("ESPFly Drone")
                                             .foregroundColor(.green.opacity(0.8))
                                             .font(.system(size: 12, design: .rounded))
@@ -268,7 +278,6 @@ struct DeviceListSheet: View {
                         }
                         .listRowBackground(Color(red: 0.13, green: 0.13, blue: 0.13))
                     }
-                    // iOS 15 kompatibel: kein .scrollContentBackground
                 }
             }
             .navigationTitle("Select Device")
