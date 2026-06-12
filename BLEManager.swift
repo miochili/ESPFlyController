@@ -8,9 +8,21 @@ final class BLEManager: NSObject, ObservableObject {
     @Published var isScanning = false
     @Published var showDeviceList = false
 
+    // Aktuelle Steuerwerte – werden vom ContentView gesetzt
+    var throttle: Float = 0.0
+    var yaw: Float = 0.0
+    var pitch: Float = 0.0
+    var roll: Float = 0.0
+
+    // Interner Zustand beim LAND-Fade
+    private var isLanding = false
+
     private var centralManager: CBCentralManager!
     private var peripheral: CBPeripheral?
     private var commandCharacteristic: CBCharacteristic?
+
+    // Send-Timer: schickt alle 80ms JOY, solange verbunden
+    private var sendTimer: Timer?
 
     // Muss exakt mit ESP-Code übereinstimmen
     private let targetDeviceName = "ESPFly-XIAO"
@@ -22,6 +34,8 @@ final class BLEManager: NSObject, ObservableObject {
         super.init()
         centralManager = CBCentralManager(delegate: self, queue: .main)
     }
+
+    // MARK: - Scan / Connect
 
     func startScan() {
         guard centralManager.state == .poweredOn else { return }
@@ -56,21 +70,75 @@ final class BLEManager: NSObject, ObservableObject {
         centralManager.cancelPeripheralConnection(peripheral)
     }
 
-    func sendJoystick(throttle: Float, yaw: Float, pitch: Float, roll: Float) {
-        let command = String(format: "JOY,%.3f,%.3f,%.3f,%.3f", throttle, yaw, pitch, roll)
-        send(command)
+    // MARK: - Send-Timer
+
+    private func startSendTimer() {
+        stopSendTimer()
+        sendTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            if self.isLanding {
+                // Pro Tick 0.04 runter -> ca. 2s von 1.0 auf 0.0
+                self.throttle = max(0.0, self.throttle - 0.04)
+                if self.throttle <= 0.0 {
+                    self.throttle = 0.0
+                    self.isLanding = false
+                    self.sendRaw("LAND")
+                    return
+                }
+            }
+            self.sendJoyNow()
+        }
     }
 
-    func sendLand() { send("LAND") }
-    func sendEmergencyStop() { send("STOP") }
+    private func stopSendTimer() {
+        sendTimer?.invalidate()
+        sendTimer = nil
+    }
 
-    private func send(_ string: String) {
+    // MARK: - Public Steuer-API
+
+    /// Wird aus ContentView bei jeder Joystick-Änderung aufgerufen.
+    /// Werte werden gespeichert und vom Timer kontinuierlich gesendet.
+    func updateJoystick(throttle: Float, yaw: Float, pitch: Float, roll: Float) {
+        self.throttle = throttle
+        self.yaw = yaw
+        self.pitch = pitch
+        self.roll = roll
+        isLanding = false
+    }
+
+    /// Startet sanften Throttle-Fade auf 0, dann sendet LAND.
+    func sendLand() {
+        isLanding = true
+    }
+
+    /// Sofortiger Notstopp – überschreibt alles.
+    func sendEmergencyStop() {
+        isLanding = false
+        throttle = 0.0
+        yaw = 0.0
+        pitch = 0.0
+        roll = 0.0
+        sendRaw("STOP")
+    }
+
+    // MARK: - Internes Senden
+
+    private func sendJoyNow() {
+        let command = String(format: "JOY,%.3f,%.3f,%.3f,%.3f", throttle, yaw, pitch, roll)
+        sendRaw(command)
+    }
+
+    private func sendRaw(_ string: String) {
         guard let peripheral = peripheral,
               let characteristic = commandCharacteristic,
+              isConnected,
               let data = string.data(using: .utf8) else { return }
-        peripheral.writeValue(data, for: characteristic, type: .withResponse)
+        peripheral.writeValue(data, for: characteristic, type: .withoutResponse)
     }
 }
+
+// MARK: - CBCentralManagerDelegate
 
 extension BLEManager: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
@@ -112,9 +180,12 @@ extension BLEManager: CBCentralManagerDelegate {
                         error: Error?) {
         isConnected = false
         commandCharacteristic = nil
+        stopSendTimer()
         statusText = "Disconnected"
     }
 }
+
+// MARK: - CBPeripheralDelegate
 
 extension BLEManager: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral,
@@ -133,6 +204,7 @@ extension BLEManager: CBPeripheralDelegate {
             if characteristic.uuid == commandCharUUID {
                 commandCharacteristic = characteristic
                 statusText = "BLE ready"
+                startSendTimer()
             }
             if characteristic.uuid == statusCharUUID {
                 peripheral.setNotifyValue(true, for: characteristic)
